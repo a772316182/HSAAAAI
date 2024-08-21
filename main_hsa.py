@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "--task", "-t", default="node_classification", type=str, help="name of task"
     )
     parser.add_argument(
-        "--dataset", "-d", default="acm4GTN", type=str, help="name of datasets"
+        "--dataset", "-d", default="imdb4GTN", type=str, help="name of datasets"
     )
     parser.add_argument("--gpu", "-g", default="0", type=int, help="-1 means cpu")
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         level_3_training_batch_size=8,
         level_3_query_limit=50,
         level_3_training_epoch=8,
-        surrogate_lr_lv3=1e-2,
+        surrogate_lr_lv3=1e-3,
         weight_decay_lv3=5e-5,
         lv3_attack_rate=0.5,
     )
