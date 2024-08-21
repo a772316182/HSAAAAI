@@ -88,16 +88,16 @@ def hsa_starter(
     graph_canonical_etypes = copy.deepcopy(example_graph.canonical_etypes)
     for i in tqdm(range(level_2_query_limit)):
         _, etype, _ = random.choice(graph_canonical_etypes)
-        hg_remove_edges_by_etype = random_flip_hg_auto_reverse(
+        hg_lv2 = random_flip_hg_auto_reverse(
             example_graph, 0.3, etype
         )
-        target_model_pred = get_pred_label(flow, hg_remove_edges_by_etype, lv1_mask).to(
+        target_model_pred = get_pred_label(flow, hg_lv2, lv1_mask).to(
             device
         )
         lv2_buffer.append(
             {
                 "chosen_etype": etype,
-                "hg": hg_remove_edges_by_etype.cpu(),
+                "hg": hg_lv2.cpu(),
                 "pred": target_model_pred.cpu(),
             }
         )
@@ -108,10 +108,10 @@ def hsa_starter(
         batchs = random.choices(lv2_buffer, k=level_2_training_batch_size)
         loss_train = 0
         for item in batchs:
-            hg = item["hg"].to(device)
+            hg_lv2 = item["hg"].to(device)
             pred = item["pred"].to(device)
             surrogate_model_logits = surrogate_model.forward(
-                get_adj_dict_for_surrogate(hg, device)
+                get_adj_dict_for_surrogate(hg_lv2, device)
             )
             surrogate_model_pred = surrogate_model_logits[lv1_mask].argmax(dim=1)
             loss_train += cross_entropy(surrogate_model_logits[lv1_mask], pred)
@@ -119,6 +119,18 @@ def hsa_starter(
         loss_train.backward()
         optimizer_lv2.step()
         logger.info(f"PHASE 1 => In epoch {i}, loss: {loss_train.item():.3f}")
+
+    etype_grads = get_grad_SHGP_dgl(
+        flow,
+        example_graph,
+        get_adj_dict_for_surrogate(example_graph, device),
+        surrogate_model
+    )
+
+    etype_grad_summary = dict(zip(
+        etype_grads.keys(),
+        torch.softmax(torch.tensor([torch.norm(item, p=2) for item in etype_grads.values()]), dim=-1).tolist()
+    ))
 
     """
         lv3 training
@@ -128,21 +140,19 @@ def hsa_starter(
         "=====================decision boundary exploration====================="
     )
     for i in tqdm(range(level_3_query_limit)):
-        source_netype, etype, target_netype = random.choice(
-            example_graph.canonical_etypes
-        )
-        hg_purb_edges_by_etype = random_flip_hg_auto_reverse(
-            example_graph, lv3_attack_rate, etype
-        )
+        hg_lv3 = example_graph.clone()
+        hg_lv3 = random_flip_hg_auto_reverse(hg_lv3, radio=0.3)
+        etype = random.choices(list(etype_grad_summary.keys()), weights=list(etype_grad_summary.values()), k=1)[0]
+        hg_lv3 = preserve_one_etypes(hg_lv3, etype, device)
 
-        target_model_pred = get_pred_label(flow, hg_purb_edges_by_etype, lv2_mask).to(
+        target_model_pred = get_pred_label(flow, hg_lv3, lv2_mask).to(
             device
         )
 
         lv3_buffer.append(
             {
                 "chosen_etype": etype,
-                "hg": hg_purb_edges_by_etype.cpu(),
+                "hg": hg_lv3.cpu(),
                 "pred": target_model_pred.cpu(),
             }
         )
@@ -161,6 +171,7 @@ def hsa_starter(
         surrogate_model.parameters(), lr=surrogate_lr_lv3, weight_decay=weight_decay_lv3
     )
     for i in range(level_3_training_epoch):
+        surrogate_model.train()
         batchs = random.choices(lv3_buffer, k=level_3_training_batch_size)
         loss_train = 0.0
         for item in batchs:

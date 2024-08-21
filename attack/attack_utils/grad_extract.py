@@ -174,7 +174,7 @@ def get_grad_SHGP_dgl(flow, hg, adj_dict, surrogate_model, mask=None, verbose=Tr
         etype_grads_fused[etype] = etype_grad
         if verbose:
             logger.debug(
-                "grad fuse, the grad mean of [", etype, "] is", etype_grad.mean().item()
+                f"grad fuse, the grad mean of [{etype}] is {etype_grad.mean().item()}"
             )
 
     return etype_grads_fused
@@ -232,8 +232,8 @@ def get_grad_HGCN_dgl(
         etype_grad = etype_grad_dict[etype] + etype_grad_dict[etype_reverse].T
         etype_grads_fused[etype] = etype_grad
         if verbose:
-            print(
-                "grad fuse, the grad mean of [", etype, "] is", etype_grad.mean().item()
+            logger.debug(
+                f"grad fuse, the grad mean of [{etype}] is {etype_grad.mean().item()}"
             )
 
     return etype_grads_fused

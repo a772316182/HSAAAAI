@@ -138,6 +138,14 @@ def get_edge_num_dict(hg: dgl.DGLHeteroGraph):
     return dict(zip(hg.etypes, [hg.num_edges(etype=etype) for etype in hg.etypes]))
 
 
+def get_reversed_etype(hg: dgl.DGLHeteroGraph, etype):
+    etype_dict = get_etype_dict(hg)
+    connect_type_matrix = get_connect_type_matrix(hg, hg.ntypes)
+    [source_ntype, target_ntype] = etype_dict[etype]
+    etype_reverse = connect_type_matrix[target_ntype][source_ntype]
+    return etype_reverse
+
+
 def get_etype_dict(hg: dgl.DGLHeteroGraph):
     return dict(zip(hg.etypes, [(item[0], item[2]) for item in hg.canonical_etypes]))
 

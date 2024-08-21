@@ -1,4 +1,5 @@
 import copy
+import random
 
 import dgl
 import numpy
@@ -9,6 +10,7 @@ from attack.attack_utils.hg_info_extract import (
     get_connect_type_matrix,
     get_filtered_etype,
     get_etype_dict,
+    get_reversed_etype,
 )
 
 
@@ -87,16 +89,39 @@ def normalize_grad_n2v(data: [dict], beta: float):
     return data
 
 
+def preserve_one_etypes(hg: dgl.DGLHeteroGraph, etype: str, device: str):
+    hg = hg.clone().to(device)
+
+    filtered_etype = get_filtered_etype(hg, hg.ntypes)
+    if etype in filtered_etype:
+        filtered_etype.remove(etype)
+    else:
+        filtered_etype.remove(get_reversed_etype(hg, etype))
+
+    for _etype in filtered_etype:
+        _etype_reverse = get_reversed_etype(hg, _etype)
+        hg = remove_all_edges_by_etype(hg, _etype, _etype_reverse, device, radio=0.2)
+    return hg.to(device)
+
+
 def remove_all_edges_by_etype(
-    hg: dgl.DGLHeteroGraph, etype: str, etype_reverse: str, device: str
+    hg: dgl.DGLHeteroGraph, etype: str, etype_reverse: str, device: str, radio=1.
 ):
     hg = hg.clone()
 
     etyped_adj = hg.adjacency_matrix(etype=etype).to_dense()
     etyped_index = torch.nonzero(etyped_adj)
-    etyped_eids = hg.edge_ids(u=etyped_index[:, 0], v=etyped_index[:, 1], etype=etype)
+
+    length = len(etyped_index)
+    aa = [i for i in range(length)]
+    random.shuffle(aa)
+    bb = aa[: int(length * radio)]
+    shuffled_etyped_index = etyped_index[bb, :]
+
+    etyped_eids = hg.edge_ids(u=shuffled_etyped_index[:, 0], v=shuffled_etyped_index[:, 1], etype=etype)
+
     etyped_eids_reverse = hg.edge_ids(
-        u=etyped_index[:, 1], v=etyped_index[:, 0], etype=etype_reverse
+        u=shuffled_etyped_index[:, 1], v=shuffled_etyped_index[:, 0], etype=etype_reverse
     )
 
     hg.remove_edges(etype=etype, eids=etyped_eids)

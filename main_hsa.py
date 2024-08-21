@@ -43,6 +43,7 @@ if __name__ == "__main__":
     flow.new_args = args
 
     # query budget = level_2_query_limit + level_3_query_limit
+    # attack budget = purb_limit_per_target
     hsa_starter(
         flow=flow,
         seed=0,
@@ -57,12 +58,12 @@ if __name__ == "__main__":
         level_2_query_limit=50,
         level_2_training_epoch=8,
         surrogate_lr_lv2=1e-2,
-        weight_decay_lv2=3e-5,
+        weight_decay_lv2=1e-3,
         #
         level_3_training_batch_size=8,
         level_3_query_limit=50,
         level_3_training_epoch=8,
         surrogate_lr_lv3=1e-3,
-        weight_decay_lv3=5e-5,
+        weight_decay_lv3=1e-4,
         lv3_attack_rate=0.5,
     )
