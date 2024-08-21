@@ -1,0 +1,7 @@
+/openhgnn/output/*
+/openhgnn/dataset/acm4GTN
+/openhgnn/dataset/data
+/openhgnn/dataset/yelp4HeGAN
+/openhgnn/dataset/*.zip
+/openhgnn/debug
+.idea
